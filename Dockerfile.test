@@ -1,0 +1,7 @@
+FROM golang:1.20 as build
+
+WORKDIR /go/src/practice-4
+COPY . .
+
+ENV INTEGRATION_TEST=1
+RUN go test ./integration

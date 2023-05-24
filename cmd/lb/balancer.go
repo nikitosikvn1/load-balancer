@@ -123,7 +123,7 @@ func main() {
 // Function to check server availability
 func checkServerHealth(server string) {
 	isHealthy := health(server)
-	log.Println(server, isHealthy)
+	log.Printf("\x1b[35m%s %t\x1b[0m", server, isHealthy)
 
 	if isHealthy {
 		healthyServers[server] = true

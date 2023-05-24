@@ -15,7 +15,7 @@ import (
 
 var (
 	port = flag.Int("port", 8090, "load balancer port")
-	timeoutSec = flag.Int("timeout-sec", 3, "request timeout time in seconds")
+	timeoutSec = flag.Int("timeout-sec", 1, "request timeout time in seconds")
 	https = flag.Bool("https", false, "whether backends support HTTPs")
 
 	traceEnabled = flag.Bool("trace", false, "whether to include tracing information into responses")
@@ -92,15 +92,10 @@ func main() {
 	for _, server := range serversPool {
 		server := server
 		go func() {
-			for range time.Tick(10 * time.Second) {
-				isHealthy := health(server)
-				log.Println(server, isHealthy)
+			checkServerHealth(server)
 
-				if isHealthy {
-					healthyServers[server] = true
-				} else {
-					delete(healthyServers, server)
-				}
+			for range time.Tick(10 * time.Second) {
+				checkServerHealth(server)
 			}
 		}()
 	}
@@ -123,6 +118,18 @@ func main() {
 	log.Printf("Tracing support enabled: %t", *traceEnabled)
 	frontend.Start()
 	signal.WaitForTerminationSignal()
+}
+
+// Function to check server availability
+func checkServerHealth(server string) {
+	isHealthy := health(server)
+	log.Println(server, isHealthy)
+
+	if isHealthy {
+		healthyServers[server] = true
+	} else {
+		delete(healthyServers, server)
+	}
 }
 
 // Returns the server by index from the list of available

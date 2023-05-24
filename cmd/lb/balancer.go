@@ -28,6 +28,7 @@ var (
 		"server2:8080",
 		"server3:8080",
 	}
+	healthyServers = make(map[string]bool)
 )
 
 func scheme() string {
@@ -92,22 +93,48 @@ func main() {
 		server := server
 		go func() {
 			for range time.Tick(10 * time.Second) {
-				log.Println(server, health(server))
+				isHealthy := health(server)
+				log.Println(server, isHealthy)
+
+				if isHealthy {
+					healthyServers[server] = true
+				} else {
+					delete(healthyServers, server)
+				}
 			}
 		}()
 	}
 
 	frontend := httptools.CreateServer(*port, http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		// TODO: Рееалізуйте свій алгоритм балансувальника.
+
+		// Якщо немає доступних здорових серверів, повертаємо статус "Service Unavailable"
+		if len(healthyServers) == 0 {
+			rw.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+
 		pathHash := hash(r.URL.Path)
-		serverIndex := int(pathHash) % len(serversPool)
-		forward(serversPool[serverIndex], rw, r)
+		serverIndex := int(pathHash) % len(healthyServers)
+		forward(getServerByIndex(serverIndex), rw, r)
 	}))
 
 	log.Println("Starting load balancer...")
 	log.Printf("Tracing support enabled: %t", *traceEnabled)
 	frontend.Start()
 	signal.WaitForTerminationSignal()
+}
+
+// Returns the server by index from the list of available
+func getServerByIndex(index int) string {
+	i := 0
+	for server := range healthyServers {
+		if i == index {
+			return server
+		}
+		i++
+	}
+	return ""
 }
 
 // djb2 hash algorithm

@@ -99,11 +99,29 @@ func main() {
 
 	frontend := httptools.CreateServer(*port, http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		// TODO: Рееалізуйте свій алгоритм балансувальника.
-		forward(serversPool[0], rw, r)
+		pathHash := hash(r.URL.Path)
+		serverIndex := int(pathHash) % len(serversPool)
+		forward(serversPool[serverIndex], rw, r)
 	}))
 
 	log.Println("Starting load balancer...")
 	log.Printf("Tracing support enabled: %t", *traceEnabled)
 	frontend.Start()
 	signal.WaitForTerminationSignal()
+}
+
+// djb2 hash algorithm
+func hash(s string) uint32 {
+	var hash uint32
+	for i := 0; i < len(s); i++ {
+		hash += uint32(s[i])
+		hash += (hash << 10)
+		hash ^= (hash >> 6)
+	}
+
+	hash += (hash << 3)
+	hash ^= (hash >> 11)
+	hash += (hash << 15)
+
+	return hash
 }

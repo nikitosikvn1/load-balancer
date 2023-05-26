@@ -38,7 +38,13 @@ func scheme() string {
 	return "http"
 }
 
-func health(dst string) bool {
+type HttpClient interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
+var client HttpClient = http.DefaultClient
+
+func health(dst string, client HttpClient) bool {
 	ctx, _ := context.WithTimeout(context.Background(), timeout)
 	req, _ := http.NewRequestWithContext(ctx, "GET",
 		fmt.Sprintf("%s://%s/health", scheme(), dst), nil)
@@ -52,7 +58,7 @@ func health(dst string) bool {
 	return true
 }
 
-func forward(dst string, rw http.ResponseWriter, r *http.Request) error {
+func forward(dst string, rw http.ResponseWriter, r *http.Request, client HttpClient) error {
 	ctx, _ := context.WithTimeout(r.Context(), timeout)
 	fwdRequest := r.Clone(ctx)
 	fwdRequest.RequestURI = ""
@@ -111,7 +117,7 @@ func main() {
 
 		pathHash := hash(r.URL.Path)
 		serverIndex := int(pathHash) % len(healthyServers)
-		forward(getServerByIndex(serverIndex), rw, r)
+		forward(getServerByIndex(serverIndex), rw, r, client)
 	}))
 
 	log.Println("Starting load balancer...")
@@ -122,7 +128,7 @@ func main() {
 
 // Function to check server availability
 func checkServerHealth(server string) {
-	isHealthy := health(server)
+	isHealthy := health(server, client)
 	log.Printf("\x1b[35m%s %t\x1b[0m", server, isHealthy)
 
 	if isHealthy {

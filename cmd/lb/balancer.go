@@ -97,9 +97,9 @@ func main() {
 	// TODO: Використовуйте дані про стан сервреа, щоб підтримувати список тих серверів, яким можна відправляти ззапит.
 	for _, server := range serversPool {
 		server := server
-		go func() {
-			checkServerHealth(server)
 
+		checkServerHealth(server)
+		go func() {
 			for range time.Tick(10 * time.Second) {
 				checkServerHealth(server)
 			}
@@ -148,6 +148,7 @@ func checkServerHealth(server string) {
 			healthyServers = append(healthyServers[:index], healthyServers[index+1:]...)
 		}
 	}
+	fmt.Println(healthyServers)
 }
 
 // djb2 hash algorithm

@@ -28,7 +28,7 @@ var (
 		"server2:8080",
 		"server3:8080",
 	}
-	healthyServers = make(map[string]bool)
+	healthyServers []string
 )
 
 func scheme() string {
@@ -66,7 +66,7 @@ func forward(dst string, rw http.ResponseWriter, r *http.Request, client HttpCli
 	fwdRequest.URL.Scheme = scheme()
 	fwdRequest.Host = dst
 
-	resp, err := http.DefaultClient.Do(fwdRequest)
+	resp, err := client.Do(fwdRequest)
 	if err == nil {
 		for k, values := range resp.Header {
 			for _, value := range values {
@@ -117,7 +117,7 @@ func main() {
 
 		pathHash := hash(r.URL.Path)
 		serverIndex := int(pathHash) % len(healthyServers)
-		forward(getServerByIndex(serverIndex), rw, r, client)
+		forward(healthyServers[serverIndex], rw, r, client)
 	}))
 
 	log.Println("Starting load balancer...")
@@ -131,23 +131,23 @@ func checkServerHealth(server string) {
 	isHealthy := health(server, client)
 	log.Printf("\x1b[35m%s %t\x1b[0m", server, isHealthy)
 
-	if isHealthy {
-		healthyServers[server] = true
-	} else {
-		delete(healthyServers, server)
-	}
-}
-
-// Returns the server by index from the list of available
-func getServerByIndex(index int) string {
-	i := 0
-	for server := range healthyServers {
-		if i == index {
-			return server
+	index := -1
+	for i, v := range healthyServers {
+		if v == server {
+			index = i
+			break
 		}
-		i++
 	}
-	return ""
+
+	if isHealthy {
+		if index == -1 {
+			healthyServers = append(healthyServers, server)
+		}
+	} else {
+		if index != -1 {
+			healthyServers = append(healthyServers[:index], healthyServers[index+1:]...)
+		}
+	}
 }
 
 // djb2 hash algorithm

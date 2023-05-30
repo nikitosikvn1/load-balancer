@@ -3,6 +3,7 @@ FROM golang:1.20 as build
 WORKDIR /go/src/practice-4
 COPY . .
 
+RUN go mod download
 RUN go test ./...
 ENV CGO_ENABLED=0
 RUN go install ./cmd/...

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -12,15 +13,15 @@ import (
 )
 
 func TestScheme(t *testing.T) {
-    t.Run("HTTP", func(t *testing.T) {
-        *https = false
-        assert.Equal(t, "http", scheme())
-    })
+	t.Run("HTTP", func(t *testing.T) {
+		*https = false
+		assert.Equal(t, "http", scheme())
+	})
 
-    t.Run("HTTPS", func(t *testing.T) {
-        *https = true
-        assert.Equal(t, "https", scheme())
-    })
+	t.Run("HTTPS", func(t *testing.T) {
+		*https = true
+		assert.Equal(t, "https", scheme())
+	})
 }
 
 func TestHash(t *testing.T) {
@@ -58,7 +59,7 @@ func TestHealth(t *testing.T) {
 		httpmock.NewStringResponder(200, ""))
 
 	client := &MockHttpClient{}
-	
+
 	assert.True(t, health(dst, client))
 
 	httpmock.RegisterResponder("GET", fmt.Sprintf("http://%s/health", dst),
@@ -123,4 +124,22 @@ func TestHealth_RequestTimeout(t *testing.T) {
 	client := &MockHttpClient{}
 
 	assert.False(t, health(dst, client))
+}
+
+func TestForward(t *testing.T) {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	dst := "server1:8080"
+	httpmock.RegisterResponder("GET", fmt.Sprintf("http://%s/test", dst),
+		httpmock.NewStringResponder(200, "test"))
+
+	
+	req, err := http.NewRequest("GET", "/test", nil)
+	assert.NoError(t, err)
+	rw := httptest.NewRecorder()
+	client := http.DefaultClient
+
+	err = forward(dst, rw, req, client)
+	assert.NoError(t, err)
 }

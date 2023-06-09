@@ -66,8 +66,6 @@ func BenchmarkBalancer(b *testing.B) {
 		b.Skip("Integration test is not enabled")
 	}
 
-	startTime := time.Now()
-
 	for i := 0; i < b.N; i++ {
 		resp, err := client.Get(fmt.Sprintf("%s/api/v1/some-data", baseAddress))
 		if err != nil {
@@ -75,9 +73,4 @@ func BenchmarkBalancer(b *testing.B) {
 		}
 		resp.Body.Close()
 	}
-
-	elapsedTime := time.Since(startTime)
-
-	b.Log("Iterations: ", b.N)
-	b.Log("Time spent: ", elapsedTime)
 }

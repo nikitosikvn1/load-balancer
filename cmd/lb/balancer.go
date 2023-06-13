@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/roman-mazur/design-practice-2-template/httptools"
@@ -28,6 +29,7 @@ var (
 		"server2:8080",
 		"server3:8080",
 	}
+	healthyServersMutex sync.Mutex
 	healthyServers []string
 )
 
@@ -108,6 +110,8 @@ func main() {
 
 	frontend := httptools.CreateServer(*port, http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		// TODO: Рееалізуйте свій алгоритм балансувальника.
+		healthyServersMutex.Lock()
+		defer healthyServersMutex.Unlock()
 
 		// Якщо немає доступних здорових серверів, повертаємо статус "Service Unavailable"
 		if len(healthyServers) == 0 {
@@ -130,6 +134,9 @@ func main() {
 func checkServerHealth(server string) {
 	isHealthy := health(server, client)
 	log.Printf("\x1b[35m%s %t\x1b[0m", server, isHealthy)
+
+	healthyServersMutex.Lock()
+	defer healthyServersMutex.Unlock()
 
 	index := -1
 	for i, v := range healthyServers {

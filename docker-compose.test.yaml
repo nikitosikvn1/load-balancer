@@ -5,6 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.test
+    command: ["go", "test", "./integration", "-v", "-count=1", "-bench=.", "-benchtime=10x"]
     networks:
       - servers
     depends_on:

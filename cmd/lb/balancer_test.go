@@ -2,13 +2,18 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/jarcoal/httpmock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestScheme(t *testing.T) {
@@ -123,4 +128,65 @@ func TestHealth_RequestTimeout(t *testing.T) {
 	client := &MockHttpClient{}
 
 	assert.False(t, health(dst, client))
+}
+
+func TestForwardSuccess(t *testing.T) {
+	req := httptest.NewRequest("GET", "/test", nil)
+	rr := httptest.NewRecorder()
+	mockClient := &MockHttpClient{
+		DoFunc: func(req *http.Request) (*http.Response, error) {
+			resp := &http.Response{
+				StatusCode:    http.StatusOK,
+				Body:          io.NopCloser(strings.NewReader("mock response")),
+				Header:        make(http.Header),
+				ContentLength: int64(len("mock response")),
+				Request:       req,
+			}
+			return resp, nil
+		},
+	}
+	err := forward("localhost:8080", rr, req, mockClient)
+
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(t, "mock response", rr.Body.String())
+}
+
+func TestForwardFailure(t *testing.T) {
+	req := httptest.NewRequest("GET", "/test", nil)
+	rr := httptest.NewRecorder()
+	errExpected := errors.New("mock error")
+	mockClient := &MockHttpClient{
+		DoFunc: func(req *http.Request) (*http.Response, error) {
+			return nil, errExpected
+		},
+	}
+
+	err := forward("localhost:8080", rr, req, mockClient)
+
+	require.Error(t, err)
+	assert.Equal(t, errExpected, err)
+	assert.Equal(t, http.StatusServiceUnavailable, rr.Code)
+}
+
+func TestForwardTimeout(t *testing.T) {
+	client := &MockHttpClient{
+		DoFunc: func(req *http.Request) (*http.Response, error) {
+			time.Sleep(2 * time.Second)
+			return nil, errors.New("timeout")
+		},
+	}
+
+	req, err := http.NewRequest("GET", "http://localhost", nil)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithTimeout(req.Context(), 1*time.Second)
+	defer cancel()
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+
+	err = forward("localhost", rr, req, client)
+	require.Error(t, err)
+	assert.Equal(t, http.StatusServiceUnavailable, rr.Code)
 }

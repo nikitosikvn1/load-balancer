@@ -17,15 +17,15 @@ import (
 )
 
 func TestScheme(t *testing.T) {
-    t.Run("HTTP", func(t *testing.T) {
-        *https = false
-        assert.Equal(t, "http", scheme())
-    })
+	t.Run("HTTP", func(t *testing.T) {
+		*https = false
+		assert.Equal(t, "http", scheme())
+	})
 
-    t.Run("HTTPS", func(t *testing.T) {
-        *https = true
-        assert.Equal(t, "https", scheme())
-    })
+	t.Run("HTTPS", func(t *testing.T) {
+		*https = true
+		assert.Equal(t, "https", scheme())
+	})
 }
 
 func TestHash(t *testing.T) {
@@ -63,7 +63,7 @@ func TestHealth(t *testing.T) {
 		httpmock.NewStringResponder(200, ""))
 
 	client := &MockHttpClient{}
-	
+
 	assert.True(t, health(dst, client))
 
 	httpmock.RegisterResponder("GET", fmt.Sprintf("http://%s/health", dst),
